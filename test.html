@@ -4,6 +4,13 @@
         <meta charset="utf-8">
     </head>
     <body>
+        <!-- ломаем встроеный полифилл -->
+        <script>
+            window.Promise = undefined;
+        </script>
+        <!-- подключаем свой полифил  -->
         <script src="promise-polyfill.js"></script>
+        <!-- cкрипт для теста -->
+        <script src="test.js"></script>
     </body>
 </html>
