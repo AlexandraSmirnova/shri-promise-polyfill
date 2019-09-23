@@ -60,13 +60,13 @@ function getGlobalObject() {
                     promise.status_ = PromiseStatuses.FULFILLED;
                     return v;
                 },
-                function (r) { 
+                function (r) {
                     promise.status_ = PromiseStatuses.REJECTED;
                     return reject(promise, r)
                 }
             );
         } else {
-            promise.status_ = PromiseStatuses.FULFILLED;
+            promise.status_ = promise.status_ === PromiseStatuses.PENDING ? PromiseStatuses.FULFILLED : promise.status_;
             promise.value_ = thenable ? value.value : value;
 
             fulfillCallbacks(promise);
@@ -79,7 +79,6 @@ function getGlobalObject() {
      * @param {*} reason 
      */
     function reject(promise, reason) {
-        console.log('reject', promise, reason);
         if (promise.status_ === PromiseStatuses.PENDING) {
             promise.status_ = PromiseStatuses.REJECTED;
             promise.value_ = reason;
@@ -131,12 +130,13 @@ function getGlobalObject() {
         var value = owner.value_;
         var callback = subscriber[settled];
         var promise = subscriber.then;
-        console.log('status',settled, callback);
 
         if (typeof callback === 'function') {
             try {
                 value = callback(value);
+                settled = PromiseStatuses.FULFILLED;
             } catch (e) {
+                value = e;
                 reject(promise, e);
             }
         }
@@ -155,7 +155,7 @@ function getGlobalObject() {
      */
     function Promise(resolveFunc) {
         if (typeof resolveFunc !== 'function') {
-            throw new TypeError('Promise constructor takes a function argument');
+            throw new TypeError('Promise resolver ' + resolveFunc + ' is not a function');
         }
 
         this.status_ = PromiseStatuses.PENDING;
@@ -174,7 +174,7 @@ function getGlobalObject() {
 
             const subscriber = {
                 fulfilled: typeof onResolve === 'function' ? onResolve : function () { },
-                rejected: typeof onResolve === 'function' ? onRejected : function () { },
+                rejected: typeof onRejected === 'function' ? onRejected : function () { },
                 owner: owner,
                 then: new Promise(function () { }),
             };
