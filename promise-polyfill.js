@@ -1,4 +1,7 @@
-function getGlobalObject(){
+/**
+ * Функция, возвращающая глобальный объект, для встраивания полифила
+ */
+function getGlobalObject() {
     if (typeof window !== 'undefined') {
         return window;
     }
@@ -7,7 +10,7 @@ function getGlobalObject(){
         : this;
 }
 
-(function(global) {
+(function (global) {
     var isPromiseSupported = Boolean(global['Promise']);
 
     if (isPromiseSupported) {
@@ -19,7 +22,7 @@ function getGlobalObject(){
         exports.Promise = Promise;
     } else if (typeof define == 'function' && define.amd) {
         // amd
-        define(function(){
+        define(function () {
             return Promise;
         });
     } else {
@@ -35,7 +38,7 @@ function getGlobalObject(){
     };
 
     /**
-     * Проверяет, можно ли вызвыть у объекта then
+     * Проверка, можно ли вызвыть у объекта then
      * @param {*} subject 
      */
     function isThenable(subject) {
@@ -43,91 +46,113 @@ function getGlobalObject(){
     }
 
     /**
-     * 
+     * Функуия, которая резолвит промис
      * @param {*} promise 
      * @param {*} value 
      */
     function resolve(promise, value) {
         const thenable = isThenable(value);
 
-        if (thenable && value.status_=== PromiseStatuses.PENDING) {
-            console.log('thenable')
+        if (thenable && promise.status_ === PromiseStatuses.PENDING) {
             value.then(
-                function (v) { return resolve(v) },
-                function (r) { return reject(r) }
+                function (v) {
+                    promise.value_ = v;
+                    promise.status_ = PromiseStatuses.FULFILLED;
+                    return v;
+                },
+                function (r) { 
+                    promise.status_ = PromiseStatuses.REJECTED;
+                    return reject(promise, r)
+                }
             );
         } else {
-            console.log('set value', thenable ?  value.value : value);
             promise.status_ = PromiseStatuses.FULFILLED;
-            promise.value_ = thenable ?  value.value : value;
+            promise.value_ = thenable ? value.value : value;
 
             fulfillCallbacks(promise);
         }
     }
 
-
+    /**
+     * Функция, которая реджектит промис
+     * @param {*} promise 
+     * @param {*} reason 
+     */
     function reject(promise, reason) {
+        console.log('reject', promise, reason);
         if (promise.status_ === PromiseStatuses.PENDING) {
-            promise.status_ = PromiseStatuses.RESOLVED;
+            promise.status_ = PromiseStatuses.REJECTED;
             promise.value_ = reason;
         }
     }
 
+    /**
+     * Выполнение очереди колбеков
+     * @param {*} promise 
+     */
     function fulfillCallbacks(promise) {
         var callbacks = promise.subscribers_;
-        
+
         for (var i = 0; i < callbacks.length; i++) {
-            console.log('callback', callbacks[i]);
             invokeCallback(callbacks[i]);
         }
 
         promise.subscribers_ = undefined;
     }
 
-
+    /**
+     * Выполнение функции, переданной в аргумент конструктора промиса
+     * @param {*} resolver 
+     * @param {*} promise 
+     */
     function invokeResolver(resolver, promise) {
-        const resolveCallback = function(value) {
+        const resolveCallback = function (value) {
             resolve(promise, value);
         }
 
-        const rejectCallback = function(reason) {
+        const rejectCallback = function (reason) {
             reject(promise, reason);
         }
 
         try {
-            resolver(resolveCallback, rejectCallback);
+            return resolver(resolveCallback, rejectCallback);
         } catch (e) {
-            rejectCallback(e);
+            return rejectCallback(e);
         }
     }
 
+    /**
+     * Выполнение колбека переданного в then
+     * @param {*} subscriber 
+     */
     function invokeCallback(subscriber) {
         var owner = subscriber.owner;
         var settled = owner.status_;
-        var value = owner.value_;  
+        var value = owner.value_;
         var callback = subscriber[settled];
         var promise = subscriber.then;
-        
-        console.log('subd', settled, owner);
-        if (typeof callback === 'function'){
+        console.log('status',settled, callback);
+
+        if (typeof callback === 'function') {
             try {
                 value = callback(value);
-            } catch(e) {
+            } catch (e) {
                 reject(promise, e);
             }
         }
 
-        if (!isThenable(value)) {
-            if (settled === PromiseStatuses.FULFILLED) {
-                resolve(promise, value);
-            }
-            if (settled === PromiseStatuses.REJECTED) {
-                reject(promise, value);
-            }
+        if (settled === PromiseStatuses.FULFILLED) {
+            resolve(promise, value);
+        }
+        if (settled === PromiseStatuses.REJECTED) {
+            reject(promise, value);
         }
     }
 
-
+    /**
+     * Полифил промиса
+     * @param {*} resolveFunc 
+     */
     function Promise(resolveFunc) {
         if (typeof resolveFunc !== 'function') {
             throw new TypeError('Promise constructor takes a function argument');
@@ -135,32 +160,32 @@ function getGlobalObject(){
 
         this.status_ = PromiseStatuses.PENDING;
         this.value_ = undefined;
-        // this.settled_ = false;
         this.subscribers_ = [];
         this.settled_ = false
 
         invokeResolver(resolveFunc, this);
+    };
 
-        this.then = function (onResolve, onRejected) {
-            console.log('then');
-            // here checking params
+    Promise.prototype = {
+        constructor: Promise,
+
+        then: function (onResolve, onRejected) {
             const owner = this;
-        
+
             const subscriber = {
-                fulfilled: onResolve,
-                rejected: onRejected,
+                fulfilled: typeof onResolve === 'function' ? onResolve : function () { },
+                rejected: typeof onResolve === 'function' ? onRejected : function () { },
                 owner: owner,
-                then: new Promise(function(){}),
+                then: new Promise(function () { }),
             };
 
-            if (this.status_ === PromiseStatuses.FULFILLED || this.status_ === PromiseStatuses.REJECTED){
-                invokeCallback(subscriber);
+            if (this.status_ === PromiseStatuses.FULFILLED || this.status_ === PromiseStatuses.REJECTED) {
+                setTimeout(invokeCallback(subscriber), 0);
             }
             else {
                 this.subscribers_.push(subscriber);
             }
-
             return subscriber.then;
         }
-    };
+    }
 })(getGlobalObject())
