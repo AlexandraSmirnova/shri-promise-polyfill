@@ -14,5 +14,14 @@
 ### Как запустить тесты
 ```
 yarn
-yarn run jest
+yarn test
+```
+
+### Пример использования
+```js
+const { Promise } = require("./promise-polyfill");
+
+const promise = new Promise((resolve) => {
+    setTimeout(resolve(1), 1000)
+}).then((val) => val + 5);
 ```

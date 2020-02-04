@@ -46,7 +46,7 @@ function getGlobalObject() {
     }
 
     /**
-     * Функуия, которая резолвит промис
+     * Функция, которая резолвит промис
      * @param {*} promise 
      * @param {*} value 
      */

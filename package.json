@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "repository": "https://github.com/AlexandraSmirnova/shri-promise-polyfill.git",
-  "author": "Alexandra Smirnova <smirnova.a.yu@gmail.com>",
+  "author": "Alexandra Smirnova",
+  "scripts": {
+    "test": "jest"
+  },
   "devDependencies": {
     "jest": "^24.9.0"
   }
